@@ -1,0 +1,945 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="E46 Log">
+<meta name="theme-color" content="#0d0f14">
+<title>BMW E46 Maintenance Log</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+  /* ====== WCAG AA: all text meets 4.5:1 contrast on backgrounds ====== */
+  :root {
+    --bg: #0d0f14;
+    --surface: #1a1e2a;       /* lightened from #141720 for better contrast */
+    --surface2: #222736;      /* lightened from #1c2030 */
+    --border: #3a4055;        /* lightened from #252a3a */
+    --accent: #f0d060;        /* lightened from #e8c547 — 7.2:1 on --bg */
+    --accent2: #67d3ff;       /* lightened from #4fc3f7 — 5.1:1 on --bg */
+    --red: #ff8080;           /* lightened from #ff6b6b — 5.4:1 on --bg */
+    --orange: #ffaa66;        /* lightened from #fb923c — 5.8:1 on --bg */
+    --green: #7de89a;         /* lightened from #69db7c — 6.1:1 on --bg */
+    --purple: #c8a0f8;        /* lightened from #c084fc */
+    --yellow: #ffd166;        /* lightened from #fbbf24 */
+    --indigo: #b8c5ff;        /* lightened from #a5b4fc */
+    --teal: #4de8d4;          /* lightened from #2dd4bf */
+    --text: #eceef4;          /* 14.5:1 on --bg */
+    --muted: #9ba3b8;         /* 4.6:1 on --bg — meets AA for large text; used for labels */
+    --arabic: #d5dae8;
+    --focus: #f0d060;
+  }
+
+  /* Skip link for keyboard users */
+  .skip-link {
+    position: absolute; top: -100px; left: 12px; z-index: 9999;
+    background: var(--accent); color: #0d0f14; padding: 8px 16px;
+    border-radius: 0 0 8px 8px; font-weight: 700; font-size: 0.9rem;
+    text-decoration: none; transition: top 0.15s;
+  }
+  .skip-link:focus { top: 0; }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: 'Syne', sans-serif; min-height: 100vh; }
+
+  /* Focus visible for all interactive elements */
+  :focus-visible {
+    outline: 3px solid var(--focus);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .header {
+    background: var(--surface); border-bottom: 2px solid var(--border);
+    padding: 20px 24px; display: flex; justify-content: space-between; align-items: center;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-left h1 { font-size: 1.4rem; font-weight: 800; letter-spacing: -0.5px; }
+  .header-left h1 span { color: var(--accent); }
+  .header-left p { font-size: 0.85rem; color: var(--muted); font-family: 'DM Mono', monospace; margin-top: 2px; }
+
+  .btn {
+    background: var(--accent); color: #0d0f14; border: 2px solid transparent;
+    padding: 10px 18px; border-radius: 8px; font-family: 'Syne', sans-serif;
+    font-weight: 700; font-size: 0.9rem; cursor: pointer; transition: opacity 0.15s;
+    min-height: 44px; /* WCAG AA touch target */
+  }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline {
+    background: transparent; color: var(--accent); border: 2px solid var(--accent);
+  }
+  .btn-outline:hover { background: var(--accent); color: #0d0f14; }
+
+  .stats-bar {
+    display: grid; grid-template-columns: repeat(4, 1fr);
+    gap: 1px; background: var(--border); border-bottom: 2px solid var(--border);
+  }
+  .stat { background: var(--surface); padding: 16px 20px; text-align: center; }
+  .stat-value { font-size: 1.5rem; font-weight: 800; color: var(--accent); font-family: 'DM Mono', monospace; }
+  .stat-label { font-size: 0.8rem; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: 0.5px; font-weight: 600; }
+
+  /* Tabs — use role="tablist" pattern */
+  .tabs {
+    display: flex; gap: 4px; padding: 16px 24px 0;
+    border-bottom: 2px solid var(--border); background: var(--surface); overflow-x: auto;
+  }
+  .tab {
+    padding: 10px 18px; border-radius: 8px 8px 0 0; font-weight: 700; font-size: 0.88rem;
+    cursor: pointer; color: var(--muted); border: 2px solid transparent; border-bottom: none;
+    transition: all 0.15s; background: transparent; white-space: nowrap;
+    min-height: 44px; display: flex; align-items: center;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--bg); color: var(--accent); border-color: var(--border); }
+  .tab[aria-selected="true"] { background: var(--bg); color: var(--accent); border-color: var(--border); }
+
+  .main { padding: 24px; max-width: 1100px; margin: 0 auto; }
+
+  .alert {
+    background: #1f1a00; border: 2px solid var(--accent);
+    border-radius: 12px; padding: 16px 20px; margin-bottom: 24px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .alert-icon { font-size: 1.5rem; flex-shrink: 0; }
+  .alert-text strong { color: var(--accent); display: block; font-size: 0.95rem; }
+  .alert-text span { font-size: 0.85rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+
+  .log-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; flex-wrap: wrap; gap: 10px; }
+  .log-header h2 { font-size: 1rem; font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  .filters { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .filter-input {
+    background: var(--surface2); border: 2px solid var(--border); color: var(--text);
+    padding: 8px 12px; border-radius: 6px; font-family: 'Syne', sans-serif;
+    font-size: 0.88rem; outline: none; width: 180px; min-height: 44px;
+  }
+  .filter-input:focus { border-color: var(--focus); }
+  .filter-input::placeholder { color: var(--muted); }
+
+  .log-table-wrap { overflow-x: auto; border-radius: 12px; border: 2px solid var(--border); }
+  table { width: 100%; border-collapse: collapse; }
+  caption { font-size: 0.8rem; color: var(--muted); padding: 8px; text-align: left; }
+  thead th {
+    background: var(--surface2); padding: 12px 16px; text-align: left;
+    font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.8px;
+    color: var(--muted); font-weight: 700; border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  /* Scope for screen readers */
+  thead th[scope] { }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background 0.1s; }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: var(--surface2); }
+  tbody tr:focus-within { background: var(--surface2); }
+  td { padding: 12px 16px; font-size: 0.88rem; vertical-align: top; }
+  .td-date { font-family: 'DM Mono', monospace; color: var(--accent2); white-space: nowrap; }
+  .td-km { font-family: 'DM Mono', monospace; color: var(--accent); font-weight: 700; white-space: nowrap; }
+  .td-cost { font-family: 'DM Mono', monospace; color: var(--green); }
+  .td-desc { max-width: 360px; }
+
+  .tag {
+    display: inline-block; padding: 3px 8px; border-radius: 4px;
+    font-size: 0.72rem; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 4px; border: 1px solid;
+  }
+  .tag-oil     { background: #2a1f00; color: var(--yellow);  border-color: var(--yellow); }
+  .tag-engine  { background: #200a0a; color: var(--red);     border-color: var(--red); }
+  .tag-brakes  { background: #0a1f0a; color: var(--green);   border-color: var(--green); }
+  .tag-cooling { background: #0a1428; color: var(--accent2); border-color: var(--accent2); }
+  .tag-electrical { background: #1a0a28; color: var(--purple); border-color: var(--purple); }
+  .tag-fuel    { background: #1f1a00; color: var(--yellow);  border-color: var(--yellow); }
+  .tag-suspension { background: #080828; color: var(--indigo); border-color: var(--indigo); }
+  .tag-tyres   { background: #200a00; color: var(--orange);  border-color: var(--orange); }
+  .tag-battery { background: #001a1a; color: var(--teal);    border-color: var(--teal); }
+  .tag-other   { background: #1a1a1a; color: var(--muted);   border-color: var(--muted); }
+
+  .desc-main { color: var(--text); line-height: 1.5; }
+  .desc-arabic { color: var(--arabic); font-size: 0.85rem; direction: rtl; text-align: right; margin-top: 4px; }
+  .next-km-hint { font-size: 0.78rem; color: var(--green); margin-top: 4px; }
+
+  .actions { display: flex; gap: 6px; }
+  .icon-btn {
+    background: none; border: 2px solid var(--border); color: var(--muted);
+    padding: 6px 10px; border-radius: 5px; cursor: pointer; font-size: 0.8rem;
+    transition: all 0.15s; min-width: 44px; min-height: 44px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .icon-btn.del:hover { border-color: var(--red); color: var(--red); }
+
+  /* ====== RECOMMENDATIONS ====== */
+  .rec-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; }
+
+  .rec-card {
+    background: var(--surface); border-radius: 14px; padding: 18px 20px;
+    border-left: 4px solid var(--muted); position: relative;
+    cursor: pointer; transition: transform 0.15s, box-shadow 0.15s, border-color 0.15s;
+    border: 2px solid var(--border); border-left: 4px solid var(--muted);
+  }
+  .rec-card:hover { transform: translateY(-2px); box-shadow: 0 6px 24px rgba(0,0,0,0.4); }
+  .rec-card:focus-visible { outline: 3px solid var(--focus); outline-offset: 3px; }
+  .rec-card.urgent { border-color: var(--red); border-left-color: var(--red); background: #1e0808; }
+  .rec-card.soon   { border-color: var(--orange); border-left-color: var(--orange); background: #1e1200; }
+  .rec-card.ok     { border-color: var(--green); border-left-color: var(--green); background: #081408; }
+  .rec-card.unknown{ border-color: var(--muted); border-left-color: var(--muted); }
+
+  .rec-card-hint {
+    position: absolute; bottom: 14px; right: 14px;
+    font-size: 0.68rem; color: var(--muted); font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    opacity: 0; transition: opacity 0.15s;
+  }
+  .rec-card:hover .rec-card-hint,
+  .rec-card:focus-visible .rec-card-hint { opacity: 1; }
+
+  .rec-status { font-size: 0.72rem; font-weight: 700; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px; }
+  .rec-card.urgent .rec-status { color: var(--red); }
+  .rec-card.soon   .rec-status { color: var(--orange); }
+  .rec-card.ok     .rec-status { color: var(--green); }
+  .rec-card.unknown .rec-status { color: var(--muted); }
+
+  .rec-title { font-size: 1rem; font-weight: 700; margin-bottom: 6px; padding-right: 32px; }
+  .rec-detail { font-size: 0.82rem; color: var(--muted); line-height: 1.6; }
+  .rec-detail strong { color: var(--text); }
+  .rec-bar-wrap { background: var(--border); border-radius: 4px; height: 6px; margin-top: 14px; }
+  .rec-bar { height: 6px; border-radius: 4px; transition: width 0.5s ease; }
+  .rec-card.urgent .rec-bar { background: var(--red); }
+  .rec-card.soon   .rec-bar { background: var(--orange); }
+  .rec-card.ok     .rec-bar { background: var(--green); }
+  .rec-card.unknown .rec-bar { background: var(--muted); }
+  .rec-badge { position: absolute; top: 14px; right: 14px; font-size: 1.4rem; line-height: 1; }
+  .rec-note { font-size: 0.75rem; color: var(--muted); margin-top: 10px; font-style: italic; line-height: 1.5; padding-bottom: 20px; }
+
+  /* TIMELINE */
+  .timeline { position: relative; padding-left: 32px; }
+  .timeline::before { content: ''; position: absolute; left: 10px; top: 0; bottom: 0; width: 2px; background: var(--border); }
+  .timeline-item { position: relative; margin-bottom: 20px; background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 14px 16px; }
+  .timeline-item::before { content: ''; position: absolute; left: -26px; top: 18px; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); border: 2px solid var(--bg); }
+  .timeline-meta { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
+  .t-date { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--accent2); }
+  .t-km   { font-family: 'DM Mono', monospace; font-size: 0.82rem; color: var(--accent); margin-left: 8px; }
+
+  /* FUEL */
+  .fuel-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+  .fuel-card { background: var(--surface); border: 2px solid var(--border); border-radius: 10px; padding: 14px; text-align: center; }
+  .f-liters { font-size: 1.3rem; font-weight: 800; color: var(--accent2); font-family: 'DM Mono', monospace; }
+  .f-km     { font-size: 0.82rem; color: var(--muted); font-family: 'DM Mono', monospace; }
+  .f-date   { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+
+  /* MODAL */
+  .modal-overlay {
+    display: none; position: fixed; inset: 0;
+    background: rgba(0,0,0,0.8); z-index: 200;
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 2px solid var(--border);
+    border-radius: 16px; padding: 28px; width: 100%; max-width: 560px;
+    max-height: 90vh; overflow-y: auto;
+  }
+  .modal h2 { font-size: 1.15rem; font-weight: 800; margin-bottom: 20px; }
+  .form-row { margin-bottom: 16px; }
+  .form-row label {
+    display: block; font-size: 0.8rem; color: var(--muted);
+    text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px; font-weight: 700;
+  }
+  .form-input, .form-select, .form-textarea {
+    width: 100%; background: var(--surface2); border: 2px solid var(--border);
+    color: var(--text); padding: 10px 14px; border-radius: 8px;
+    font-family: 'Syne', sans-serif; font-size: 0.9rem; outline: none;
+    transition: border-color 0.15s; min-height: 44px;
+  }
+  .form-input:focus, .form-select:focus, .form-textarea:focus { border-color: var(--focus); }
+  .form-input::placeholder, .form-textarea::placeholder { color: var(--muted); }
+  .form-textarea { resize: vertical; min-height: 80px; }
+  .form-select option { background: var(--surface2); }
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+
+  /* Status announcer for screen readers */
+  .sr-only {
+    position: absolute; width: 1px; height: 1px; padding: 0;
+    margin: -1px; overflow: hidden; clip: rect(0,0,0,0);
+    white-space: nowrap; border: 0;
+  }
+
+  .empty { text-align: center; padding: 48px; color: var(--muted); font-size: 0.95rem; }
+  .sources-note {
+    margin-top: 20px; padding: 16px; background: var(--surface);
+    border-radius: 10px; border: 2px solid var(--border);
+    font-size: 0.82rem; color: var(--muted); line-height: 1.7;
+  }
+
+  @media (max-width: 700px) {
+    .stats-bar { grid-template-columns: repeat(2, 1fr); }
+    .form-grid { grid-template-columns: 1fr; }
+    .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+    .rec-grid { grid-template-columns: 1fr; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { transition: none !important; animation: none !important; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Skip navigation for keyboard users -->
+<a href="#main-content" class="skip-link">Skip to main content</a>
+
+<!-- Live region for screen reader announcements -->
+<div id="liveRegion" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+<header>
+  <div class="header">
+    <div class="header-left">
+      <h1>🔧 BMW E46 <span>Maintenance</span></h1>
+      <p>2005 · Alexandria, EG · <span id="syncStatus" style="font-family:'DM Mono',monospace;font-size:0.8rem;transition:color 0.3s">🔄 Loading…</span></p>
+    </div>
+    <button class="btn" onclick="openAddModal()" aria-label="Add new maintenance record">+ Add Entry</button>
+  </div>
+</header>
+
+<div class="stats-bar" role="region" aria-label="Summary statistics">
+  <div class="stat">
+    <div class="stat-value" id="statCurrentKm" aria-label="Current odometer">—</div>
+    <div class="stat-label">Current KM</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="statTotalEntries" aria-label="Total service records">—</div>
+    <div class="stat-label">Service Records</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="statNextOil" aria-label="Next oil change kilometre">—</div>
+    <div class="stat-label">Next Oil Change KM</div>
+  </div>
+  <div class="stat">
+    <div class="stat-value" id="statTotalCost" aria-label="Total logged cost in Egyptian pounds">—</div>
+    <div class="stat-label">Total Logged Cost (EGP)</div>
+  </div>
+</div>
+
+<div id="nextServiceAlert" style="padding:16px 24px 0; max-width:1100px; margin:0 auto;" role="status"></div>
+
+<nav aria-label="Main sections">
+  <div class="tabs" role="tablist">
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-rec"   onclick="switchTab('rec',this)">⚠️ Recommendations</button>
+    <button class="tab active" role="tab" aria-selected="true"  aria-controls="tab-log"   onclick="switchTab('log',this)">Service Log</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-timeline" onclick="switchTab('timeline',this)">Timeline</button>
+    <button class="tab" role="tab" aria-selected="false" aria-controls="tab-fuel"  onclick="switchTab('fuel',this)">Fuel Records</button>
+  </div>
+</nav>
+
+<main id="main-content">
+<div class="main">
+
+  <!-- RECOMMENDATIONS TAB -->
+  <div id="tab-rec" role="tabpanel" aria-label="Service recommendations" style="display:none">
+    <div class="log-header">
+      <h2 id="rec-heading">BMW E46 Service Recommendations</h2>
+      <p style="font-size:0.82rem;color:var(--muted)">Click any card to log that service</p>
+    </div>
+    <div class="rec-grid" id="recGrid" aria-labelledby="rec-heading"></div>
+    <div class="sources-note">
+      <strong style="color:var(--text)">Sources:</strong> BMW E46 Fanatics community schedule · MyE46.com · E46 BimmerFest master schedule · BMW Inspection I/II factory specs.
+      Intervals adapted for high-mileage vehicle and Egyptian driving conditions (dusty environment = shorter air/cabin filter intervals recommended).
+    </div>
+  </div>
+
+  <!-- LOG TAB -->
+  <div id="tab-log" role="tabpanel" aria-label="Service log">
+    <div class="log-header">
+      <h2>All Records</h2>
+      <div class="filters" role="search" aria-label="Filter service records">
+        <label for="searchInput" class="sr-only">Search records</label>
+        <input class="filter-input" type="search" placeholder="Search records…" id="searchInput" oninput="renderLog()" aria-label="Search records">
+        <label for="catFilter" class="sr-only">Filter by category</label>
+        <select class="filter-input" id="catFilter" onchange="renderLog()" style="width:150px" aria-label="Filter by category">
+          <option value="">All Categories</option>
+          <option value="oil">Oil Change</option>
+          <option value="engine">Engine</option>
+          <option value="brakes">Brakes</option>
+          <option value="cooling">Cooling</option>
+          <option value="electrical">Electrical</option>
+          <option value="fuel">Fuel System</option>
+          <option value="suspension">Suspension</option>
+          <option value="tyres">Tyres</option>
+          <option value="battery">Battery</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+    </div>
+    <div class="log-table-wrap">
+      <table aria-label="Maintenance service log">
+        <thead>
+          <tr>
+            <th scope="col">Date</th>
+            <th scope="col">Odometer</th>
+            <th scope="col">Category</th>
+            <th scope="col">Description</th>
+            <th scope="col">Cost (EGP)</th>
+            <th scope="col">Actions</th>
+          </tr>
+        </thead>
+        <tbody id="logBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- TIMELINE TAB -->
+  <div id="tab-timeline" role="tabpanel" aria-label="Maintenance timeline" style="display:none">
+    <div class="timeline" id="timelineBody" aria-label="Chronological maintenance timeline"></div>
+  </div>
+
+  <!-- FUEL TAB -->
+  <div id="tab-fuel" role="tabpanel" aria-label="Fuel fill-up records" style="display:none">
+    <div class="log-header"><h2>Fuel Fill-ups</h2></div>
+    <div class="fuel-grid" id="fuelGrid"></div>
+  </div>
+
+</div>
+</main>
+
+<!-- ADD/EDIT MODAL -->
+<div class="modal-overlay" id="modalOverlay" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+  <div class="modal">
+    <h2 id="modalTitle">Add Maintenance Record</h2>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="fDate">Date</label>
+        <input class="form-input" type="date" id="fDate">
+      </div>
+      <div class="form-row">
+        <label for="fKm">Odometer (KM)</label>
+        <input class="form-input" type="number" id="fKm" placeholder="e.g. 273000" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <label for="fCat">Category</label>
+      <select class="form-select" id="fCat">
+        <option value="oil">Oil Change</option>
+        <option value="engine">Engine</option>
+        <option value="brakes">Brakes</option>
+        <option value="cooling">Cooling</option>
+        <option value="electrical">Electrical</option>
+        <option value="fuel">Fuel System</option>
+        <option value="suspension">Suspension</option>
+        <option value="tyres">Tyres</option>
+        <option value="battery">Battery</option>
+        <option value="other">Other</option>
+      </select>
+    </div>
+    <div class="form-row">
+      <label for="fDesc">Description (English)</label>
+      <textarea class="form-textarea" id="fDesc" placeholder="What was done…"></textarea>
+    </div>
+    <div class="form-row">
+      <label for="fArabic">Notes in Arabic (optional)</label>
+      <textarea class="form-textarea" id="fArabic" placeholder="ملاحظات…" dir="rtl" lang="ar"></textarea>
+    </div>
+    <div class="form-grid">
+      <div class="form-row">
+        <label for="fCost">Cost (EGP)</label>
+        <input class="form-input" type="number" id="fCost" placeholder="0" min="0">
+      </div>
+      <div class="form-row">
+        <label for="fNextKm">Next Service At (KM)</label>
+        <input class="form-input" type="number" id="fNextKm" placeholder="optional" min="0">
+      </div>
+    </div>
+    <div class="form-row">
+      <label for="fNextNote">Next Service Note</label>
+      <input class="form-input" type="text" id="fNextNote" placeholder="e.g. Next oil change">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-outline" onclick="closeModal()">Cancel</button>
+      <button class="btn" onclick="saveEntry()">Save Record</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ======= DATA =======
+const INITIAL_DATA = [
+  { date:'2021-10-25', km:195392, cat:'cooling', desc:'Coolant reservoir, engine oil, filter, workmanship, dynamo, stabilizer bush', arabic:'اربت مياه ٧٥٠ · مبرد فتيس بيهر ١٥٠٠ · مبرد مطور ١٠٠٠ · زيت مطور ٣٧٥ · فلتر زيت ١٥٠ · زيت فتيس ٤٠٠ · بنزين تنظيف ٥٠ · طبة زيت ٢٠ · مصنعيه ٧٠٠ · الدينامو ١٥٠٠ · بليت شداد ١٠٠', cost:6545, nextKm:null, nextNote:'' },
+  { date:'2021-10-29', km:197149, cat:'electrical', desc:'LED bulbs, radiator, engine mounts, thermostat, connectors, starter buttons, workmanship', arabic:'اللمبات اللد ٤٠٠ · الليداتير ١٤٠٠ · قواعد المتور ١٣٠٠ · الترموستات ٦٥٠ · موصلات ٥٠ · مسترت الزراير ٤٠٠ · مصنعيه ٨٠٠', cost:5000, nextKm:null, nextNote:'' },
+  { date:'2021-12-02', km:198998, cat:'engine', desc:'Spark plugs, oil filter, air filter, engine oil, sensor, injectors, workmanship', arabic:'بوجيهات ٦٠٠ · فلتر زيت ١٥٠ · فلتر هواء ٣٧٥ · زيت مطور ٣٧٥ · حساس ٧٠٠ · ابر فوانس ٢٠٠٠ · مصنعيه ٤٠٠', cost:4700, nextKm:null, nextNote:'' },
+  { date:'2021-12-21', km:null, cat:'cooling', desc:'Coolant reservoir cover replaced due to leak', arabic:'تم تغير غطاء اربت المياه للتسريب', cost:null, nextKm:null, nextNote:'' },
+  { date:'2021-12-24', km:200180, cat:'engine', desc:'Power steering box, hose, oil, workmanship', arabic:'علبت البور ١٦٠٠ · خرطوم ١٥٠ · زيت ١٥٠ · مصنعيه ٣٠٠', cost:2200, nextKm:null, nextNote:'' },
+  { date:'2022-03-01', km:203118, cat:'oil', desc:'Oil change – oil, filter, hose (E46 used part)', arabic:'', cost:625, nextKm:null, nextNote:'' },
+  { date:'2022-04-09', km:206120, cat:'suspension', desc:'Oil+filter, air filter, front shocks, 2x control arm kits, stabilizer links, shock mounts, bump stops, lathe work, connectors, workmanship', arabic:'زيت ٤٤٠ · فلتر ٢٠٠ · فلتر هواء ٣٥٠ · المساعدين امامى ٢٦٠٠ · ٢طقم مقص ٢٥٠٠ · ٢تيش استبليزر ٧٥٠ · جلب مقص ١٠٠٠ · ٢بطاحة مساعدين ٩٥٠ · ٢طقم صداد ٦٠٠ · كاوتش تربات اسكترا ٤٠٠ · خراط ١٠٠ · موصلات ٦٠ · مصنعيه ٨٠٠', cost:9750, nextKm:null, nextNote:'' },
+  { date:'2022-06-25', km:209541, cat:'fuel', desc:'Fuel filter, engine oil, oil filter', arabic:'الفلتر بنزين ٨٥٠ · الزيت ٥٣٠ · فلتر الزيت ١٥٠', cost:1530, nextKm:null, nextNote:'' },
+  { date:'2022-07-10', km:210613, cat:'brakes', desc:'Front & rear brake fluid, 2x brake fluid ports, rear brake clamp, Jackman sensor, workmanship', arabic:'تيل امامى ٥٥٠ · تيل خلفى ٥٠٠ · ٢ فيشة تيل ٤٠٠ · كلبس فرامل خلفى ١٥٠ · حساس جكمان ٧٠٠ · مصنعية ٦٠٠', cost:2900, nextKm:null, nextNote:'' },
+  { date:'2022-07-29', km:212208, cat:'oil', desc:'Oil, oil filter, coolant, coolant cap, connectors, workmanship', arabic:'زيت ٥٥٠ · فلتر زيت ٢٠٠ · مياه ٢٠٠ · غطاء مياه ٢٥٠ · موصلات ٣٠ · مصنعيه ٢٠٠', cost:1430, nextKm:null, nextNote:'' },
+  { date:'2022-08-10', km:212724, cat:'engine', desc:'2x air valves, cylinder head plug, connectors, workmanship', arabic:'٢ مسمار هواء ١٠٠ · طبه وش سلندر ٣٠٠ · موصلات ٦٠ · مصنعيه ٤٠٠', cost:860, nextKm:null, nextNote:'' },
+  { date:'2022-09-01', km:214308, cat:'brakes', desc:'Brake fluid replacement', arabic:'زيت فرامل', cost:null, nextKm:null, nextNote:'' },
+  { date:'2022-09-03', km:214781, cat:'cooling', desc:'Coolant reservoir + workmanship', arabic:'اربت مياه + مصنعية ٩٠٠', cost:900, nextKm:null, nextNote:'' },
+  { date:'2022-09-30', km:215609, cat:'oil', desc:'Oil, oil filter, air filter, oil sensor, connectors, workmanship', arabic:'زيت ٥٥٠ · فلتر زيت ٢٠٠ · فلتر هواء ٤٠٠ · حساس زيت ١٣٠٠ · موصلات ٦٠ · مصنعية ٣٠٠', cost:2810, nextKm:null, nextNote:'' },
+  { date:'2022-10-24', km:217120, cat:'engine', desc:'Cylinder No.4 injector nozzle, engine oil cap', arabic:'مبينة رقم ٤ ٣٥٠ · غطاء زيت المتور ٣٥٠', cost:700, nextKm:null, nextNote:'' },
+  { date:'2023-03-02', km:223222, cat:'cooling', desc:'Curved elbow water hose replacement', arabic:'خرطوم مياه كوع معوج ١٢٠٠', cost:1200, nextKm:null, nextNote:'' },
+  { date:'2023-03-04', km:223260, cat:'oil', desc:'Oil change – 10W40', arabic:'', cost:null, nextKm:230000, nextNote:'Next oil change – use 10W-40' },
+  { date:'2023-05-27', km:227189, cat:'oil', desc:'Oil change – 10000 5W40, 4.25L', arabic:'', cost:null, nextKm:234000, nextNote:'Check at 230,000, replace at 234,000' },
+  { date:'2023-06-27', km:228831, cat:'cooling', desc:'Coolant change (BMW), AC recharge and hot water diversion at Bamby', arabic:'تغيير مياه رداتير BMW · إعادة شحن فريون', cost:null, nextKm:null, nextNote:'' },
+  { date:'2023-09-08', km:233130, cat:'engine', desc:'Workshop wash, air filter, connectors, workmanship', arabic:'٢٥٠ غسل في البنزينه · ٧٥٠ فلتر هواء · موصلات ٥٠ · ٣٠٠ مصنعيه', cost:1350, nextKm:null, nextNote:'' },
+  { date:'2023-10-13', km:234966, cat:'oil', desc:'Oil change – 10000 5W40, 4.25L', arabic:'', cost:null, nextKm:242000, nextNote:'Check at 238,000, replace at 242,000' },
+  { date:'2023-10-27', km:235679, cat:'suspension', desc:'Control arms, bearing, oil, wheel bolt, connectors, workmanship', arabic:'مقصات ٩٧٥٠ · جلب ٣٥٠٠ · تيل ١٣٥٠ · مسمار عجل ١٥٠ · موصلات ١٠٠ · مصنعيه ١٥٠٠ · اجمالى ١٦٤٥٠', cost:16450, nextKm:null, nextNote:'' },
+  { date:'2024-05-31', km:null, cat:'engine', desc:'2x oxygen sensors, stabilizer ball joint, oil cap, belt', arabic:'٢ حساس اكسجين · بلية شداد · غطاء زيت · سير', cost:null, nextKm:null, nextNote:'' },
+  { date:'2024-06-12', km:null, cat:'battery', desc:'New 12V 80Ah battery', arabic:'بطارية جديدة ١٢ فولت ٨٠ أمبير', cost:5000, nextKm:null, nextNote:'' },
+  { date:'2024-07-16', km:247550, cat:'oil', desc:'Shell Helix BMW LL01 + Razoil addition, 4.25L', arabic:'', cost:null, nextKm:258000, nextNote:'Replace at 258,000' },
+  { date:'2024-11-02', km:252200, cat:'engine', desc:'Tappet cover, spark plugs, coolant reservoir cap, radiator water, workmanship', arabic:'غطاء التكهات ٣٥٠٠ · بوجيهات ٢٠٠٠ · غطاء قربه ٥٠٠ · مياه ليداتير ٦٠٠ · مصنعيه ٨٠٠', cost:7400, nextKm:null, nextNote:'' },
+  { date:'2024-11-07', km:252520, cat:'engine', desc:'ABS sensor, valve cover gasket, bird valve sensor, engine oil, oil filter, workmanship', arabic:'الحساس ABS ١٥٠٠ · جوان فلف تروك ٣٥٠ · عصفورة حساس فلف ٤٥٠ · زيت موتور ٢١٥٠ · فلتر زيت ٤٠٠ · مصنعيه ٤٠٠ · إجمالي ٥٢٥٠', cost:5250, nextKm:262000, nextNote:'Oil change at 262,000' },
+  { date:'2024-12-14', km:254787, cat:'other', desc:'Vehicle check / inspection', arabic:'', cost:null, nextKm:null, nextNote:'' },
+  { date:'2025-07-09', km:262990, cat:'cooling', desc:'Water pump, radiator, thermostat base replacement', arabic:'شجرة مياه · رداتير · قاعدة ترموستات', cost:null, nextKm:null, nextNote:'' },
+  { date:'2025-07-24', km:263560, cat:'oil', desc:'Motul BMW LL1 5W40, 4.25L + upper radiator hose, ethanol, Renault radiator water, distilled water', arabic:'زيت موتول BMW LL1 5W40 · رادياتير خرطوم علوي · إيثانول 1L · مياه رداتير رينول · مياه مقطرة', cost:null, nextKm:null, nextNote:'' },
+  { date:'2025-08-08', km:264338, cat:'cooling', desc:'Radiator cooling fan + electrical work', arabic:'مروحة رادياتير · أعمال كهرباء', cost:null, nextKm:null, nextNote:'' },
+  { date:'2025-09-13', km:null, cat:'electrical', desc:'Left headlamp replaced after failure', arabic:'تم تغيير المصباح الأيسر بعد عطله', cost:null, nextKm:null, nextNote:'' },
+  { date:'2026-03-07', km:273000, cat:'oil', desc:'Oil replacement – Razoil W40 Blue, catalytic converter cleaner, engine flush', arabic:'تغيير زيت رازويل W40 أزرق · منظف كتاليك · غسيل المحرك', cost:null, nextKm:283000, nextNote:'Next oil change at 283,000 km' },
+];
+
+const FUEL_DATA = [
+  {date:'',km:190545,liters:60},{date:'',km:190996,liters:52.90},{date:'',km:191754,liters:59.38},{date:'',km:192220,liters:44.38},{date:'',km:192803,liters:55},{date:'',km:193483,liters:68.75},{date:'',km:194148,liters:55.60},{date:'',km:194763,liters:58.75},{date:'',km:195326,liters:56.88},
+  {date:'2021-10-30',km:197163,liters:57.22},{date:'2021-11-18',km:197707,liters:56.30},{date:'2021-11-26',km:198186,liters:47.46},{date:'2021-11-27',km:198479,liters:23.76},{date:'2021-12-05',km:199156,liters:59.64},{date:'2021-12-16',km:199762,liters:56.97},
+  {date:'2022-01-01',km:200514,liters:77.70},{date:'2022-01-14',km:201068,liters:55.76},{date:'2022-01-27',km:201640,liters:57},{date:'2022-02-07',km:202208,liters:57.77},{date:'2022-02-19',km:202751,liters:54.18},{date:'2022-03-01',km:203299,liters:56.47},{date:'2022-03-12',km:203899,liters:58.40},{date:'2022-03-17',km:204591,liters:57.42},{date:'2022-03-23',km:205251,liters:55.18},{date:'2022-04-01',km:205836,liters:56.47},{date:'2022-04-15',km:206457,liters:58.04},{date:'2022-04-29',km:207069,liters:57.75},{date:'2022-05-14',km:207566,liters:47.50},{date:'2022-05-21',km:207841,liters:23.60},{date:'2022-05-27',km:208130,liters:27.70},{date:'2022-06-04',km:208453,liters:29.24},{date:'2022-06-11',km:208780,liters:30.86},{date:'2022-06-18',km:209191,liters:41},{date:'2022-06-26',km:209566,liters:38},{date:'2022-06-28',km:210129,liters:47.19},{date:'2022-07-08',km:210613,liters:48.82},{date:'2022-07-12',km:210935,liters:25.95},{date:'2022-07-22',km:211856,liters:52.75},{date:'2022-07-31',km:212268,liters:40.93},{date:'2022-08-08',km:212917,liters:61.60},{date:'2022-08-19',km:213564,liters:58.23},{date:'2022-08-27',km:213978,liters:43.9},{date:'2022-09-02',km:214336,liters:37.76},{date:'2022-09-09',km:214962,liters:58.21},{date:'2022-09-19',km:215453,liters:55.07},{date:'2022-10-06',km:216233,liters:54.58},{date:'2022-10-18',km:216776,liters:57.21},{date:'2022-10-30',km:217333,liters:51.63},{date:'2022-11-17',km:217986,liters:58.15},
+  {date:'2022-11-29',km:218538,liters:50.25},{date:'2022-12-08',km:219026,liters:45.12},{date:'2022-12-19',km:219548,liters:47.61},{date:'2022-12-29',km:220100,liters:51.88},{date:'2023-01-13',km:220708,liters:49.27},{date:'2023-01-23',km:221200,liters:53.51},{date:'2023-02-07',km:221755,liters:55.42},{date:'2023-02-21',km:222357,liters:58.47},{date:'2023-02-27',km:222982,liters:51.12},{date:'2023-03-05',km:223287,liters:29.22},{date:'2023-03-17',km:224015,liters:66.50},{date:'2023-03-28',km:224503,liters:47.55},{date:'2023-04-08',km:225077,liters:57.40},{date:'2023-04-18',km:225607,liters:54.21},{date:'2023-05-09',km:226252,liters:68.5},{date:'2023-05-19',km:226810,liters:56.65},{date:'2023-05-27',km:227255,liters:46.60},{date:'2023-06-09',km:227885,liters:59},{date:'2023-06-17',km:228348,liters:51.92},{date:'2023-06-27',km:228831,liters:57.40},{date:'2023-07-01',km:229227,liters:34},{date:'2023-07-12',km:229813,liters:59.8},{date:'2023-07-29',km:230640,liters:75},{date:'2023-08-11',km:231065,liters:48.30},{date:'2023-08-21',km:231635,liters:56.64},{date:'2023-08-29',km:232225,liters:53.92},{date:'2023-09-06',km:232584,liters:39.20}
+];
+
+// ======= E46 MAINTENANCE SCHEDULE =======
+// catOverride: map each schedule item to a default log category for the modal
+const E46_SCHEDULE = [
+  { id:'oil', icon:'🛢️', title:'Engine Oil & Filter', intervalKm:10000, intervalDays:365,
+    keywords:['oil','زيت موتور','زيت مطور','shell helix','motul','razoil','oil replacement','oil change'],
+    catFilter:'oil', defaultCat:'oil',
+    note:'BMW LL01/LL04 spec. 5W-40 fully synthetic recommended. 4.25L for M54 engine.' },
+  { id:'sparkplugs', icon:'⚡', title:'Spark Plugs', intervalKm:50000, intervalDays:null,
+    keywords:['spark plug','بوجيهات','plugs'], defaultCat:'engine',
+    note:'BMW recommends 100,000 km but E46 community strongly advises 50,000 km. Use NGK BKR6EQUP (OEM spec).' },
+  { id:'airfilter', icon:'💨', title:'Air Filter', intervalKm:15000, intervalDays:365,
+    keywords:['air filter','فلتر هواء'], defaultCat:'engine',
+    note:'Shorten to 10,000–12,000 km in dusty Alexandria conditions.' },
+  { id:'brakefluid', icon:'🔴', title:'Brake Fluid Flush', intervalKm:null, intervalDays:730,
+    keywords:['brake fluid','تيل','زيت فرامل'], defaultCat:'brakes',
+    note:'Every 2 years regardless of mileage. Hygroscopic fluid absorbs moisture and lowers boiling point.' },
+  { id:'coolant', icon:'🌡️', title:'Coolant Flush', intervalKm:null, intervalDays:730,
+    keywords:['coolant','مياه رداتير','coolant change','مياه ليداتير'], defaultCat:'cooling',
+    note:'Every 2 years. Use BMW OEM blue coolant 50/50 with distilled water only.' },
+  { id:'fuelfilter', icon:'⛽', title:'Fuel Filter', intervalKm:50000, intervalDays:null,
+    keywords:['fuel filter','فلتر بنزين'], defaultCat:'fuel',
+    note:'Often overlooked. Every 40,000–50,000 km. Includes pressure regulator on E46.' },
+  { id:'cabinfilter', icon:'🌬️', title:'Cabin Microfilter', intervalKm:15000, intervalDays:365,
+    keywords:['cabin filter','microfilter'], defaultCat:'other',
+    note:'Every 12–15,000 km or yearly. More often in dusty environments like Alexandria.' },
+  { id:'difffluid', icon:'⚙️', title:'Differential Fluid', intervalKm:50000, intervalDays:null,
+    keywords:['differential','diff'], defaultCat:'other',
+    note:'Not lifetime fluid despite BMW claim. 50,000 km. Use Red Line 75W-90 synthetic.' },
+  { id:'powersteering', icon:'🔄', title:'Power Steering Fluid', intervalKm:50000, intervalDays:null,
+    keywords:['power steering','بور','البور'], defaultCat:'other',
+    note:'Every 50,000 km. Flush with ATF. Your E46 had steering box work done at 200,180 km.' },
+  { id:'serpentinebelt', icon:'🔁', title:'Serpentine Belt(s)', intervalKm:80000, intervalDays:null,
+    keywords:['belt','سير','serpentine'], defaultCat:'engine',
+    note:'Every 80,000 km or at any sign of cracking. E46 has multiple belts — inspect all.' },
+  { id:'battery', icon:'🔋', title:'Battery', intervalKm:null, intervalDays:1460,
+    keywords:['battery','بطارية'], defaultCat:'battery',
+    note:'Typically 4–5 years. Your current 12V 80Ah battery was installed June 2024.' },
+  { id:'waterpump', icon:'💧', title:'Water Pump', intervalKm:120000, intervalDays:null,
+    keywords:['water pump','شجرة مياه'], defaultCat:'cooling',
+    note:'OEM plastic impeller pumps fail without warning. You replaced at 262,990 km. Next at ~383,000 km.' },
+  { id:'thermostat', icon:'🌡️', title:'Thermostat', intervalKm:120000, intervalDays:null,
+    keywords:['thermostat','ترموستات'], defaultCat:'cooling',
+    note:'Replace together with water pump. You did both at 262,990 km. Next at ~383,000 km.' },
+  { id:'oxygensensor', icon:'📡', title:'Oxygen Sensors', intervalKm:100000, intervalDays:null,
+    keywords:['oxygen','حساس اكسجين'], defaultCat:'engine',
+    note:'2 sensors on E46. You replaced both at ~241,000 km (May 2024). Next: ~341,000 km.' },
+];
+
+// ======= SUPABASE CONFIG =======
+const SUPA_URL = 'https://cdepdnsijmhqeacwrcae.supabase.co';
+const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZXBkbnNpam1ocWVhY3dyY2FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1Mzg5NzUsImV4cCI6MjA5NTExNDk3NX0.X3svzeX1Fg8I-tIrF3pdv8s17pfOHIkaQY5f0JofOrs';
+const SUPA_HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
+
+// ======= STATE =======
+let records = [];
+let editIndex = null;
+let saveTimer = null;
+
+function showSyncStatus(state) {
+  const el = document.getElementById('syncStatus');
+  if (!el) return;
+  const map = {
+    loading: ['🔄', 'Loading…',   'var(--accent2)'],
+    saving:  ['⏳', 'Saving…',    'var(--muted)'],
+    saved:   ['✅', 'Synced',     'var(--green)'],
+    offline: ['📵', 'Offline — changes saved locally', 'var(--orange)'],
+    error:   ['⚠️', 'Sync error', 'var(--red)'],
+  };
+  const [icon, label, color] = map[state] || map.error;
+  el.textContent = icon + ' ' + label;
+  el.style.color = color;
+  if (state === 'saved') setTimeout(() => { if (el.textContent.startsWith('✅')) el.textContent = '✅ Synced'; }, 3000);
+}
+
+async function loadData() {
+  showSyncStatus('loading');
+  // Always load local cache first so UI is instant
+  const local = localStorage.getItem('carlog_e46_cache');
+  if (local) { records = JSON.parse(local); updateStats(); renderLog(); }
+
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/maintenance_records?id=eq.1&select=data`, { headers: SUPA_HEADERS });
+    const bodyText = await res.text();
+    if (!res.ok) throw new Error(`HTTP ${res.status}: ${bodyText}`);
+    const json = JSON.parse(bodyText);
+    if (json.length && json[0].data && json[0].data.length > 0) {
+      records = json[0].data;
+      localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
+      showSyncStatus('saved');
+    } else {
+      // Remote is empty — push initial data up
+      records = local ? JSON.parse(local) : INITIAL_DATA.map((r,i) => ({...r, id:i}));
+      await pushToSupabase();
+    }
+  } catch(e) {
+    // Offline — use local cache or initial data
+    if (!local) records = INITIAL_DATA.map((r,i) => ({...r, id:i}));
+    showSyncStatus('offline');
+    // Show exact error in header for debugging
+    const el = document.getElementById('syncStatus');
+    if (el) el.textContent = '⚠️ ' + e.message;
+    updateStats(); renderLog();
+  }
+
+async function pushToSupabase() {
+  showSyncStatus('saving');
+  try {
+    const res = await fetch(`${SUPA_URL}/rest/v1/maintenance_records?id=eq.1`, {
+      method: 'PATCH',
+      headers: { ...SUPA_HEADERS, 'Prefer': 'return=minimal' },
+      body: JSON.stringify({ data: records, updated_at: new Date().toISOString() })
+    });
+    if (!res.ok) throw new Error('save failed');
+    localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
+    showSyncStatus('saved');
+  } catch(e) {
+    // Save to local cache so nothing is lost
+    localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
+    showSyncStatus('offline');
+  }
+}
+
+function saveData() {
+  // Debounce — wait 800ms after last change before pushing to Supabase
+  localStorage.setItem('carlog_e46_cache', JSON.stringify(records)); // instant local save
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(pushToSupabase, 800);
+}
+
+function announce(msg) {
+  const el = document.getElementById('liveRegion');
+  el.textContent = '';
+  requestAnimationFrame(() => { el.textContent = msg; });
+}
+
+// ======= RECOMMENDATIONS ENGINE =======
+function getLastOccurrence(keywords, catFilter) {
+  const kw = keywords.map(k => k.toLowerCase());
+  const matches = records.filter(r => {
+    if (catFilter && r.cat !== catFilter) return false;
+    const text = ((r.desc||'') + ' ' + (r.arabic||'')).toLowerCase();
+    return kw.some(k => text.includes(k));
+  });
+  if (!matches.length) return null;
+  matches.sort((a,b) => {
+    if (a.km && b.km) return b.km - a.km;
+    if (a.date && b.date) return b.date.localeCompare(a.date);
+    return 0;
+  });
+  return matches[0];
+}
+
+function dateDiffDays(dateStr) {
+  if (!dateStr) return null;
+  const d = new Date(dateStr);
+  const now = new Date();
+  return Math.round((now - d) / 86400000);
+}
+
+// Called when user clicks a recommendation card — opens modal pre-filled
+function logFromRecommendation(itemId) {
+  const item = E46_SCHEDULE.find(i => i.id === itemId);
+  if (!item) return;
+  editIndex = null;
+  document.getElementById('modalTitle').textContent = `Log: ${item.title}`;
+
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('fDate').value = today;
+  document.getElementById('fKm').value = '';
+  document.getElementById('fCat').value = item.defaultCat || 'other';
+  document.getElementById('fDesc').value = item.title;
+  document.getElementById('fArabic').value = '';
+  document.getElementById('fCost').value = '';
+  document.getElementById('fNextKm').value = '';
+  document.getElementById('fNextNote').value = '';
+  document.getElementById('modalOverlay').classList.add('open');
+  // Focus first field
+  setTimeout(() => document.getElementById('fDate').focus(), 50);
+  announce(`Opening log form for ${item.title}`);
+}
+
+function renderRecommendations() {
+  const allKms = records.filter(r => r.km).map(r => r.km);
+  const currentKm = allKms.length ? Math.max(...allKms) : 273000;
+  const grid = document.getElementById('recGrid');
+
+  const items = E46_SCHEDULE.map(item => {
+    const last = getLastOccurrence(item.keywords, item.catFilter);
+    const lastKm = last ? last.km : null;
+    const lastDate = last ? last.date : null;
+    const daysSince = dateDiffDays(lastDate);
+
+    let status = 'unknown', statusLabel = 'No Record Found', progress = 0, detail = '';
+
+    if (item.intervalKm && lastKm) {
+      const nextDue = lastKm + item.intervalKm;
+      const remaining = nextDue - currentKm;
+      progress = Math.min(100, Math.max(0, ((currentKm - lastKm) / item.intervalKm) * 100));
+      if (remaining <= 0) { status='urgent'; statusLabel=`OVERDUE by ${Math.abs(remaining).toLocaleString()} km`; }
+      else if (remaining < item.intervalKm * 0.15) { status='soon'; statusLabel=`Due in ${remaining.toLocaleString()} km`; }
+      else { status='ok'; statusLabel=`OK — ${remaining.toLocaleString()} km remaining`; }
+      detail = `Last done: <strong>${lastKm.toLocaleString()} km</strong>${lastDate?' · '+lastDate:''}<br>Next due: <strong>${nextDue.toLocaleString()} km</strong>`;
+      if (item.intervalDays && daysSince !== null) {
+        const dr = item.intervalDays - daysSince;
+        detail += `<br>Time check: <strong>${dr > 0 ? dr+' days remaining' : Math.abs(dr)+' days overdue'}</strong>`;
+        if (dr <= 0 && status !== 'urgent') { status='soon'; statusLabel='Due by time'; }
+      }
+    } else if (item.intervalDays && daysSince !== null) {
+      const remaining = item.intervalDays - daysSince;
+      progress = Math.min(100, Math.max(0, (daysSince / item.intervalDays) * 100));
+      if (remaining <= 0) { status='urgent'; statusLabel=`OVERDUE by ${Math.abs(remaining)} days`; }
+      else if (remaining < item.intervalDays * 0.15) { status='soon'; statusLabel=`Due in ~${remaining} days`; }
+      else { status='ok'; statusLabel=`OK — ${remaining} days remaining`; }
+      detail = `Last done: <strong>${lastDate||'—'}</strong><br>Days since: <strong>${daysSince}</strong><br>Interval: every <strong>${item.intervalDays} days</strong>`;
+    } else {
+      detail = `No record found in your log. ${item.intervalKm?'Interval: every '+item.intervalKm.toLocaleString()+' km.':item.intervalDays?'Interval: every '+item.intervalDays+' days.':''}`;
+    }
+
+    return { status, html: `
+      <div class="rec-card ${status}"
+           role="button"
+           tabindex="0"
+           aria-label="${item.title} — ${statusLabel}. Click to log this service."
+           onclick="logFromRecommendation('${item.id}')"
+           onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();logFromRecommendation('${item.id}');}">
+        <span class="rec-badge" aria-hidden="true">${item.icon}</span>
+        <div class="rec-status" aria-hidden="true">${statusLabel}</div>
+        <div class="rec-title">${item.title}</div>
+        <div class="rec-detail" style="margin-top:6px">${detail}</div>
+        <div class="rec-bar-wrap" role="progressbar" aria-valuenow="${Math.round(progress)}" aria-valuemin="0" aria-valuemax="100" aria-label="Interval progress">
+          <div class="rec-bar" style="width:${progress}%"></div>
+        </div>
+        <div class="rec-note">${item.note}</div>
+        <span class="rec-card-hint" aria-hidden="true">+ Log this service</span>
+      </div>`
+    };
+  });
+
+  const order = {urgent:0,soon:1,ok:2,unknown:3};
+  items.sort((a,b) => (order[a.status]||3) - (order[b.status]||3));
+  grid.innerHTML = items.map(i => i.html).join('');
+}
+
+// ======= STATS =======
+function updateStats() {
+  const withKm = records.filter(r => r.km).map(r => r.km);
+  const maxKm = withKm.length ? Math.max(...withKm) : 0;
+  document.getElementById('statCurrentKm').textContent = maxKm ? maxKm.toLocaleString() : '—';
+  document.getElementById('statTotalEntries').textContent = records.length;
+
+  const oilRecs = records.filter(r => r.nextKm).sort((a,b) => (b.km||0)-(a.km||0));
+  const nextOil = oilRecs.length ? oilRecs[0].nextKm : null;
+  document.getElementById('statNextOil').textContent = nextOil ? nextOil.toLocaleString() : '—';
+
+  const totalCost = records.reduce((s,r) => s+(r.cost||0), 0);
+  document.getElementById('statTotalCost').textContent = totalCost ? totalCost.toLocaleString() : '—';
+
+  const alertDiv = document.getElementById('nextServiceAlert');
+  if (nextOil && maxKm) {
+    const remaining = nextOil - maxKm;
+    const isOverdue = remaining <= 0;
+    const color = isOverdue ? 'var(--red)' : 'var(--accent)';
+    alertDiv.innerHTML = `<div class="alert" style="border-color:${color}" role="status">
+      <span class="alert-icon" aria-hidden="true">⚠️</span>
+      <div class="alert-text">
+        <strong style="color:${color}">${oilRecs[0].nextNote || 'Next Service Due'}</strong>
+        <span>At ${nextOil.toLocaleString()} km · ${isOverdue ? Math.abs(remaining).toLocaleString()+' km OVERDUE' : remaining.toLocaleString()+' km remaining'}</span>
+      </div></div>`;
+  } else { alertDiv.innerHTML = ''; }
+}
+
+// ======= LOG =======
+const CAT_LABELS = {oil:'Oil Change',engine:'Engine',brakes:'Brakes',cooling:'Cooling',electrical:'Electrical',fuel:'Fuel System',suspension:'Suspension',tyres:'Tyres',battery:'Battery',other:'Other'};
+
+function renderLog() {
+  const search = document.getElementById('searchInput').value.toLowerCase();
+  const cat = document.getElementById('catFilter').value;
+  let filtered = [...records].sort((a,b) => {
+    if (a.date && b.date) return b.date.localeCompare(a.date);
+    if (a.km && b.km) return b.km - a.km;
+    return 0;
+  });
+  if (search) filtered = filtered.filter(r => ((r.desc||'')+(r.arabic||'')+(r.date||'')+String(r.km||'')).toLowerCase().includes(search));
+  if (cat) filtered = filtered.filter(r => r.cat === cat);
+
+  const tbody = document.getElementById('logBody');
+  if (!filtered.length) {
+    tbody.innerHTML = `<tr><td colspan="6"><div class="empty" role="status">No records found</div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = filtered.map(r => {
+    const idx = records.indexOf(r);
+    return `<tr>
+      <td class="td-date">${r.date||'—'}</td>
+      <td class="td-km">${r.km ? r.km.toLocaleString()+' km' : '—'}</td>
+      <td><span class="tag tag-${r.cat}">${CAT_LABELS[r.cat]||r.cat}</span></td>
+      <td class="td-desc">
+        <div class="desc-main">${r.desc||''}</div>
+        ${r.arabic ? `<div class="desc-arabic" lang="ar">${r.arabic}</div>` : ''}
+        ${r.nextKm ? `<div class="next-km-hint">→ Next: ${r.nextKm.toLocaleString()} km${r.nextNote?' · '+r.nextNote:''}</div>` : ''}
+      </td>
+      <td class="td-cost">${r.cost ? r.cost.toLocaleString() : '—'}</td>
+      <td>
+        <div class="actions">
+          <button class="icon-btn" onclick="editEntry(${idx})" aria-label="Edit record from ${r.date||'unknown date'}">✏️</button>
+          <button class="icon-btn del" onclick="deleteEntry(${idx})" aria-label="Delete record from ${r.date||'unknown date'}">🗑</button>
+        </div>
+      </td>
+    </tr>`;
+  }).join('');
+}
+
+// ======= TIMELINE =======
+function renderTimeline() {
+  const sorted = [...records].filter(r => r.date).sort((a,b) => b.date.localeCompare(a.date));
+  document.getElementById('timelineBody').innerHTML = sorted.map(r => `
+    <div class="timeline-item">
+      <div class="timeline-meta">
+        <span class="t-date">${r.date}</span>
+        ${r.km ? `<span class="t-km">${r.km.toLocaleString()} km</span>` : ''}
+        <span class="tag tag-${r.cat}">${CAT_LABELS[r.cat]}</span>
+      </div>
+      <div class="desc-main">${r.desc||''}</div>
+      ${r.arabic ? `<div class="desc-arabic" lang="ar" style="margin-top:6px">${r.arabic}</div>` : ''}
+      ${r.cost ? `<div style="font-size:0.82rem;color:var(--green);margin-top:4px">Cost: ${r.cost.toLocaleString()} EGP</div>` : ''}
+    </div>`).join('');
+}
+
+// ======= FUEL =======
+function renderFuel() {
+  const sorted = [...FUEL_DATA].sort((a,b) => b.km - a.km);
+  document.getElementById('fuelGrid').innerHTML = sorted.map(f => `
+    <div class="fuel-card">
+      <div class="f-liters" aria-label="${f.liters} litres">${f.liters}L</div>
+      <div class="f-km">${f.km.toLocaleString()} km</div>
+      ${f.date ? `<div class="f-date">${f.date}</div>` : ''}
+    </div>`).join('');
+}
+
+// ======= TABS =======
+function switchTab(name, el) {
+  ['rec','log','timeline','fuel'].forEach(t => {
+    const panel = document.getElementById('tab-'+t);
+    panel.style.display = t===name ? '' : 'none';
+    panel.setAttribute('aria-hidden', t===name ? 'false' : 'true');
+  });
+  document.querySelectorAll('.tab').forEach(t => {
+    t.classList.remove('active');
+    t.setAttribute('aria-selected','false');
+  });
+  el.classList.add('active');
+  el.setAttribute('aria-selected','true');
+  if (name==='rec') renderRecommendations();
+  if (name==='timeline') renderTimeline();
+  if (name==='fuel') renderFuel();
+}
+
+// ======= MODAL =======
+let lastFocusedEl = null;
+function openAddModal() {
+  lastFocusedEl = document.activeElement;
+  editIndex = null;
+  document.getElementById('modalTitle').textContent = 'Add Maintenance Record';
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('fDate').value = today;
+  document.getElementById('fKm').value = '';
+  document.getElementById('fCat').value = 'oil';
+  document.getElementById('fDesc').value = '';
+  document.getElementById('fArabic').value = '';
+  document.getElementById('fCost').value = '';
+  document.getElementById('fNextKm').value = '';
+  document.getElementById('fNextNote').value = '';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fDate').focus(), 50);
+}
+function editEntry(idx) {
+  lastFocusedEl = document.activeElement;
+  editIndex = idx;
+  const r = records[idx];
+  document.getElementById('modalTitle').textContent = 'Edit Record';
+  document.getElementById('fDate').value = r.date||'';
+  document.getElementById('fKm').value = r.km||'';
+  document.getElementById('fCat').value = r.cat||'other';
+  document.getElementById('fDesc').value = r.desc||'';
+  document.getElementById('fArabic').value = r.arabic||'';
+  document.getElementById('fCost').value = r.cost||'';
+  document.getElementById('fNextKm').value = r.nextKm||'';
+  document.getElementById('fNextNote').value = r.nextNote||'';
+  document.getElementById('modalOverlay').classList.add('open');
+  setTimeout(() => document.getElementById('fDate').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+  if (lastFocusedEl) lastFocusedEl.focus();
+}
+function saveEntry() {
+  const entry = {
+    id: editIndex!==null ? records[editIndex].id : Date.now(),
+    date: document.getElementById('fDate').value,
+    km: parseInt(document.getElementById('fKm').value)||null,
+    cat: document.getElementById('fCat').value,
+    desc: document.getElementById('fDesc').value,
+    arabic: document.getElementById('fArabic').value,
+    cost: parseInt(document.getElementById('fCost').value)||null,
+    nextKm: parseInt(document.getElementById('fNextKm').value)||null,
+    nextNote: document.getElementById('fNextNote').value,
+  };
+  const isEdit = editIndex !== null;
+  if (isEdit) records[editIndex]=entry; else records.push(entry);
+  saveData(); closeModal(); updateStats(); renderLog();
+  announce(isEdit ? 'Record updated.' : 'New record saved.');
+  // Refresh recommendations if visible
+  if (document.getElementById('tab-rec').style.display !== 'none') renderRecommendations();
+}
+function deleteEntry(idx) {
+  if (!confirm('Delete this record? This cannot be undone.')) return;
+  records.splice(idx,1); saveData(); updateStats(); renderLog();
+  announce('Record deleted.');
+}
+
+// Keyboard trap inside modal
+document.getElementById('modalOverlay').addEventListener('keydown', function(e) {
+  if (e.key === 'Escape') { closeModal(); return; }
+  if (e.key !== 'Tab') return;
+  const focusable = this.querySelectorAll('button, input, select, textarea, [tabindex]:not([tabindex="-1"])');
+  const first = focusable[0], last = focusable[focusable.length-1];
+  if (e.shiftKey && document.activeElement === first) { e.preventDefault(); last.focus(); }
+  else if (!e.shiftKey && document.activeElement === last) { e.preventDefault(); first.focus(); }
+});
+document.getElementById('modalOverlay').addEventListener('click', function(e) {
+  if (e.target === this) closeModal();
+});
+
+// ======= INIT =======
+loadData();
+</script>
+</body>
+</html>
