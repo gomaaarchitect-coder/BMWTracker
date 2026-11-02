@@ -277,11 +277,34 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { transition: none !important; animation: none !important; }
   }
+  #authScreen { position: fixed; inset: 0; z-index: 2000; display: flex; align-items: center; justify-content: center; padding: 16px; background: var(--bg); overflow-y: auto; }
+  #authScreen[hidden] { display: none; }
+  .auth-card { width: 100%; max-width: 360px; display: flex; flex-direction: column; gap: 10px; padding: 24px; background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
+  .auth-card h2 { color: var(--text); font-size: 20px; }
+  .auth-card label { color: var(--text); font-size: 14px; }
+  .auth-card input { min-height: 44px; padding: 8px 10px; color: var(--text); background: var(--surface2); border: 1px solid var(--muted); border-radius: 6px; font-size: 16px; }
+  .auth-card .btn { min-height: 44px; justify-content: center; }
+  #authError { color: var(--red); font-size: 14px; }
+  #signOutBtn[hidden] { display: none; }
 </style>
 </head>
 <body>
 
 <!-- Skip navigation for keyboard users -->
+<div id="authScreen">
+  <form class="auth-card" onsubmit="event.preventDefault(); signInWithEmail(false);">
+    <h2>🔧 BMW E46 Maintenance</h2>
+    <button class="btn" type="button" onclick="signInWithGoogle()">Sign in with Google</button>
+    <label for="authEmail">Email</label>
+    <input id="authEmail" type="email" autocomplete="email" required>
+    <label for="authPassword">Password</label>
+    <input id="authPassword" type="password" autocomplete="current-password" required>
+    <button class="btn" type="submit">Sign in</button>
+    <button class="btn" type="button" onclick="signInWithEmail(true)">Create account</button>
+    <p id="authError" role="alert"></p>
+  </form>
+</div>
+
 <a href="#main-content" class="skip-link">Skip to main content</a>
 
 <!-- Live region for screen reader announcements -->
@@ -294,6 +317,7 @@
       <p>2005 · Alexandria, EG · <span id="syncStatus" style="font-family:'DM Mono',monospace">🔄 Loading…</span></p>
     </div>
     <button class="btn" onclick="openAddModal()" aria-label="Add new maintenance record">+ Add Entry</button>
+    <button class="btn" id="signOutBtn" type="button" onclick="auth.signOut()" hidden>Sign out</button>
   </div>
 </header>
 
@@ -455,6 +479,9 @@
   </div>
 </div>
 
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
 <script>
 // ======= DATA =======
 const INITIAL_DATA = [
@@ -548,15 +575,26 @@ const E46_SCHEDULE = [
     note:'2 sensors on E46. You replaced both at ~241,000 km (May 2024). Next: ~341,000 km.' },
 ];
 
-// ======= SUPABASE CONFIG =======
-const SUPA_URL = 'https://cdepdnsijmhqeacwrcae.supabase.co';
-const SUPA_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNkZXBkbnNpam1ocWVhY3dyY2FlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1Mzg5NzUsImV4cCI6MjA5NTExNDk3NX0.X3svzeX1Fg8I-tIrF3pdv8s17pfOHIkaQY5f0JofOrs';
-const SUPA_HEADERS = { 'Content-Type': 'application/json', 'apikey': SUPA_KEY, 'Authorization': 'Bearer ' + SUPA_KEY };
+// ======= FIREBASE CONFIG =======
+const firebaseConfig = {
+  apiKey: 'AIzaSyBeDotmf4pkbM9UJsh3OteXlvdS2zi45gc',
+  authDomain: 'bmw-e46-log-bakr.firebaseapp.com',
+  databaseURL: 'https://bmw-e46-log-bakr-default-rtdb.europe-west1.firebasedatabase.app',
+  projectId: 'bmw-e46-log-bakr',
+  storageBucket: 'bmw-e46-log-bakr.firebasestorage.app',
+  messagingSenderId: '1054082514457',
+  appId: '1:1054082514457:web:85ec2835cae4400767b488'
+};
+firebase.initializeApp(firebaseConfig);
+const auth = firebase.auth();
+const db = firebase.database();
 
 // ======= STATE =======
 let records = [];
 let editIndex = null;
 let saveTimer = null;
+let currentUid = null;
+let cloudLoaded = false; // never write to the cloud until a read has succeeded
 
 function showSyncStatus(state, msg) {
   const el = document.getElementById('syncStatus');
@@ -573,45 +611,65 @@ function showSyncStatus(state, msg) {
   el.style.color = color;
 }
 
-async function loadData() {
-  showSyncStatus('loading');
+// Firebase drops null fields, so restore the shape the rest of the app expects
+function normalizeRecords(list) {
+  return (list || []).filter(Boolean).map(r => ({
+    ...r,
+    km: r.km ?? null, cost: r.cost ?? null, nextKm: r.nextKm ?? null,
+    arabic: r.arabic ?? '', nextNote: r.nextNote ?? ''
+  }));
+}
+
+function readCache() {
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/maintenance_records?id=eq.1&select=data`, { headers: SUPA_HEADERS });
-    const bodyText = await res.text();
-    if (!res.ok) throw new Error(`HTTP ${res.status}: ${bodyText}`);
-    const json = JSON.parse(bodyText);
-    const remoteRecords = json.length && json[0].data ? json[0].data : [];
-    // Use whichever is larger: remote or local INITIAL_DATA
-    // This ensures a fresh Supabase row (or one with only 1 record) gets seeded with ALL records
-    if (remoteRecords.length >= INITIAL_DATA.length) {
-      records = remoteRecords;
+    const parsed = JSON.parse(localStorage.getItem('carlog_e46_cache'));
+    return Array.isArray(parsed) ? parsed : null;
+  } catch (e) { return null; }
+}
+
+function seedRecords() {
+  const cached = readCache();
+  if (cached && cached.length >= INITIAL_DATA.length) return normalizeRecords(cached);
+  return INITIAL_DATA.map((r,i) => ({...r, id: r.id !== undefined ? r.id : i}));
+}
+
+async function loadFromCloud(uid) {
+  showSyncStatus('loading');
+  cloudLoaded = false;
+  // Keep one untouched copy of the pre-Firebase cache, since syncing overwrites the cache
+  const oldCache = localStorage.getItem('carlog_e46_cache');
+  if (oldCache && !localStorage.getItem('carlog_e46_cache_pre_firebase')) {
+    localStorage.setItem('carlog_e46_cache_pre_firebase', oldCache);
+  }
+  try {
+    const snapshot = await Promise.race([
+      db.ref(`carlog/users/${uid}/data`).get(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('offline')), 8000))
+    ]);
+    cloudLoaded = true;
+    if (snapshot.exists()) {
+      records = normalizeRecords(snapshot.val().records);
       localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
       showSyncStatus('saved');
     } else {
-      // Remote is empty or stale — seed with full INITIAL_DATA
-      records = INITIAL_DATA.map((r,i) => ({...r, id: r.id !== undefined ? r.id : i}));
-      await pushToSupabase();
+      // First sign-in: this account has no cloud data yet, so import it
+      records = seedRecords();
+      await pushToCloud();
     }
   } catch(e) {
-    // Offline — fall back to local cache or initial data
-    const local = localStorage.getItem('carlog_e46_cache');
-    records = local ? JSON.parse(local) : INITIAL_DATA.map((r,i) => ({...r, id: r.id !== undefined ? r.id : i}));
-    showSyncStatus('offline');
+    records = normalizeRecords(readCache());
+    if (!records.length) records = seedRecords();
+    if (e.message === 'offline') showSyncStatus('offline');
+    else showSyncStatus('error', e.message);
   }
+  updateStats(); renderLog();
 }
 
-async function pushToSupabase() {
+async function pushToCloud() {
+  if (!currentUid || !cloudLoaded) return;
   showSyncStatus('saving');
   try {
-    const res = await fetch(`${SUPA_URL}/rest/v1/maintenance_records?id=eq.1`, {
-      method: 'PATCH',
-      headers: { ...SUPA_HEADERS, 'Prefer': 'return=minimal' },
-      body: JSON.stringify({ data: records, updated_at: new Date().toISOString() })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`HTTP ${res.status}: ${t}`);
-    }
+    await db.ref(`carlog/users/${currentUid}/data`).set({ records, updatedAt: new Date().toISOString() });
     localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
     showSyncStatus('saved');
   } catch(e) {
@@ -620,10 +678,50 @@ async function pushToSupabase() {
   }
 }
 
+// ======= AUTH =======
+function showAuthError(msg) {
+  document.getElementById('authError').textContent = msg ? '⚠️ ' + msg : '';
+}
+
+async function signInWithGoogle() {
+  showAuthError('');
+  const provider = new firebase.auth.GoogleAuthProvider();
+  try {
+    await auth.signInWithPopup(provider);
+  } catch (err) {
+    if (err.code === 'auth/popup-blocked' || err.code === 'auth/popup-closed-by-user') {
+      await auth.signInWithRedirect(provider);
+    } else {
+      showAuthError(err.message);
+    }
+  }
+}
+
+async function signInWithEmail(isNew) {
+  showAuthError('');
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  try {
+    if (isNew) await auth.createUserWithEmailAndPassword(email, password);
+    else await auth.signInWithEmailAndPassword(email, password);
+  } catch (err) {
+    showAuthError(err.message);
+  }
+}
+
+function setSignedIn(signedIn) {
+  const screen = document.getElementById('authScreen');
+  screen.hidden = signedIn;
+  [...document.body.children].forEach(el => {
+    if (el !== screen && el.tagName !== 'SCRIPT') el.inert = !signedIn;
+  });
+  document.getElementById('signOutBtn').hidden = !signedIn;
+}
+
 function saveData() {
   localStorage.setItem('carlog_e46_cache', JSON.stringify(records));
   clearTimeout(saveTimer);
-  saveTimer = setTimeout(pushToSupabase, 800);
+  saveTimer = setTimeout(pushToCloud, 800);
 }
 
 function announce(msg) {
@@ -931,7 +1029,12 @@ document.getElementById('modalOverlay').addEventListener('click', function(e) {
 });
 
 // ======= INIT =======
-loadData().then(() => { updateStats(); renderLog(); });
+auth.getRedirectResult().catch(err => showAuthError(err.message));
+auth.onAuthStateChanged(user => {
+  currentUid = user ? user.uid : null;
+  setSignedIn(!!user);
+  if (user) loadFromCloud(user.uid);
+});
 </script>
 </body>
 </html>
